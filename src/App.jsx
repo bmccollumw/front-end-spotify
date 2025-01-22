@@ -7,7 +7,7 @@ function Welcome() {
 
   return (
     <>
-      <h1 className="text-3xl font-bold underline">Welcome</h1>
+      <h1>Welcome</h1>
       <p>Here is a description on the web app and everything that it does.
         I anticipate this being about three sentences at most. 
         I would like there to be some catch that gets people interested in signing in with
