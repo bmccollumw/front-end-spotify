@@ -3,7 +3,7 @@ import './index.css';
 
 
 function Welcome() {
-  const [count, setCount] = useState(0)
+
 
   return (
     <>
