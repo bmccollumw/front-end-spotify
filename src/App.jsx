@@ -1,18 +1,20 @@
-import './index.css'; 
 
+import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import Home from "./components/Home"
+import SpotifyCallback from "./components/SpotifyCallback";
+import Profile from "./components/Profile";
 
-function Welcome() {
-
-
+const App = () => {
   return (
-    <>
-      <h1 className="bg-blue-500 text-white p-4">Welcome</h1>
-      <p>Here is a description on the web app and everything that it does.
-        I anticipate this being about three sentences at most. 
-        I would like there to be some catch that gets people interested in signing in with
-        their spotify to improve the searchability of their spotify library</p>
-    </>
-  )
-}
+    <Router>
+       <h1>🚀 React App is Loaded</h1> {/* TEMPORARY CHECK */}
+      <Routes>
+        <Route path="/" element={<Home />} />
+        <Route path="/callback" element={<SpotifyCallback />} />
+        <Route path="/profile" element={<Profile />} />
+      </Routes>
+    </Router>
+  );
+};
 
-export default Welcome
+export default App;
