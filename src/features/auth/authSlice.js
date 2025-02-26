@@ -4,6 +4,7 @@ const initialState = {
   accessToken: null,
   isAuthenticated: false,
   expiresAt: null,
+  userId: null, // ✅ Store user ID
 };
 
 const authSlice = createSlice({
@@ -15,12 +16,14 @@ const authSlice = createSlice({
       state.accessToken = action.payload.token;
       state.isAuthenticated = true;
       state.expiresAt = Date.now() + action.payload.expiresIn * 1000;
+      state.userId = action.payload.userId; // ✅ Save user ID
     },
     logout: (state) => {
       console.log("👋 Logging out...");
       state.accessToken = null;
       state.isAuthenticated = false;
       state.expiresAt = null;
+      state.userId = null;
     },
   },
 });

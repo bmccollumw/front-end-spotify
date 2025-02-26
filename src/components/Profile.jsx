@@ -2,12 +2,14 @@ import { useEffect, useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { logout } from "../features/auth/authSlice";
 import { useNavigate } from "react-router-dom";
+import SyncPlaylists from "../components/SyncPlaylists"; // ✅ Import SyncPlaylists component
 
 const Profile = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const accessToken = useSelector((state) => state.auth.accessToken);
   const isAuthenticated = useSelector((state) => state.auth.isAuthenticated);
+  const userId = useSelector((state) => state.auth.userId); // ✅ Ensure userId is available
   const [user, setUser] = useState(null);
   const [playlists, setPlaylists] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -60,13 +62,13 @@ const Profile = () => {
 
         const data = await response.json();
         allPlaylists = [...allPlaylists, ...data.items];
-        nextUrl = data.next; // Spotify API provides `next` if there are more playlists
+        nextUrl = data.next;
 
         console.log("🎵 Fetched batch of playlists:", data.items);
       }
 
       console.log("✅ All Playlists Fetched:", allPlaylists);
-      setPlaylists(allPlaylists); // Store all playlists in state
+      setPlaylists(allPlaylists); // Store in state
 
     } catch (err) {
       console.error("❌ Error fetching playlists:", err);
@@ -87,7 +89,7 @@ const Profile = () => {
             onClick={fetchPlaylists}
             className="bg-blue-500 text-white px-4 py-2 rounded mt-4 hover:bg-blue-600"
           >
-            Show My Playlists
+            Fetch My Playlists
           </button>
 
           {loading && <p>Loading playlists...</p>}
@@ -104,6 +106,9 @@ const Profile = () => {
               <p>No playlists found.</p>
             )}
           </ul>
+
+          {/* ✅ Include the Sync Playlists Component */}
+          {playlists.length > 0 && <SyncPlaylists playlists={playlists} />}
 
           <button
             onClick={() => dispatch(logout())}

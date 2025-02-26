@@ -1,16 +1,22 @@
 import { useState } from "react";
 import { useSelector } from "react-redux";
-import { syncPlaylistsToBackend } from "../api";
+import { syncPlaylistsToBackend } from "../api/backend"; 
 
-const SyncPlaylists = () => {
+const SyncPlaylists = ({ playlists }) => {
   const accessToken = useSelector((state) => state.auth.accessToken);
+  const userId = useSelector((state) => state.auth.userId); // ✅ Get user ID from Redux
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
 
   const syncPlaylists = async () => {
-    if (!accessToken) {
-      setError("No access token found. Please log in.");
+    if (!accessToken || !userId) {
+      setError("Missing access token or user ID.");
+      return;
+    }
+
+    if (playlists.length === 0) {
+      setError("No playlists to sync.");
       return;
     }
 
@@ -18,12 +24,13 @@ const SyncPlaylists = () => {
     setError(null);
     setSuccess(null);
 
-    const success = await syncPlaylistsToBackend(accessToken);
+    console.log("🛰️ Sending Sync Request to Backend...", playlists);
+    const success = await syncPlaylistsToBackend(accessToken, userId, playlists);
 
     if (success) {
-      setSuccess("Playlists successfully synced!");
+      setSuccess("✅ Playlists successfully synced!");
     } else {
-      setError("Failed to sync playlists.");
+      setError("❌ Failed to sync playlists.");
     }
 
     setLoading(false);
@@ -32,7 +39,7 @@ const SyncPlaylists = () => {
   return (
     <div>
       <h2>Sync My Playlists</h2>
-      <button onClick={syncPlaylists} className="bg-blue-500 text-white px-4 py-2 rounded">
+      <button onClick={syncPlaylists} className="bg-green-500 text-white px-4 py-2 rounded mt-2">
         Sync Playlists
       </button>
 

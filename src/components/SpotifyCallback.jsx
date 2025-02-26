@@ -1,39 +1,42 @@
 import { useEffect } from "react";
 import { useDispatch } from "react-redux";
-import { useNavigate } from "react-router-dom";
 import { setAuthToken } from "../features/auth/authSlice";
-import { useSelector } from "react-redux";
+import { useNavigate } from "react-router-dom";
 
 const SpotifyCallback = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
-  const accessToken = useSelector((state) => state.auth.accessToken);
 
   useEffect(() => {
-    console.log("🔄 Checking URL for token...");
+    const hash = window.location.hash.substring(1);
+    const params = new URLSearchParams(hash);
+    const token = params.get("access_token");
+    const expiresIn = parseInt(params.get("expires_in"), 10);
 
-    const hash = window.location.hash.substring(1).split("&").reduce((acc, item) => {
-      let parts = item.split("=");
-      acc[parts[0]] = decodeURIComponent(parts[1]);
-      return acc;
-    }, {});
+    if (token) {
+      console.log("🎵 Extracted Token:", token);
 
-    console.log("🎵 Extracted Token:", hash.access_token);
-
-    if (hash.access_token) {
-      const expiresIn = parseInt(hash.expires_in) || 3600; // Default: 1 hour
-      console.log("✅ Dispatching Token to Redux");
-      dispatch(setAuthToken({ token: hash.access_token, expiresIn }));
-
-      console.log("🔍 Redux State After Dispatch:", accessToken); // Check Redux state
-      window.history.pushState("", document.title, "/");
-      navigate("/profile");
+      // ✅ Fetch user profile to get the user ID
+      fetch("https://api.spotify.com/v1/me", {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+        .then(res => res.json())
+        .then(userData => {
+          console.log("🎵 User Data:", userData);
+          dispatch(setAuthToken({ token, expiresIn, userId: userData.id })); // ✅ Save userId
+          navigate("/profile");
+        })
+        .catch(err => {
+          console.error("❌ Error fetching user:", err);
+          navigate("/");
+        });
     } else {
-      console.error("❌ No access token found!");
+      console.error("❌ No token found!");
+      navigate("/");
     }
   }, [dispatch, navigate]);
 
-  return <p>Processing Spotify login...</p>;
+  return <p>Processing login...</p>;
 };
 
 export default SpotifyCallback;
