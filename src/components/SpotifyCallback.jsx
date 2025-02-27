@@ -13,27 +13,38 @@ const SpotifyCallback = () => {
     const token = params.get("access_token");
     const expiresIn = parseInt(params.get("expires_in"), 10);
 
-    if (token) {
-      console.log("🎵 Extracted Token:", token);
-
-      // ✅ Fetch user profile to get the user ID
-      fetch("https://api.spotify.com/v1/me", {
-        headers: { Authorization: `Bearer ${token}` },
-      })
-        .then(res => res.json())
-        .then(userData => {
-          console.log("🎵 User Data:", userData);
-          dispatch(setAuthToken({ token, expiresIn, userId: userData.id })); // ✅ Save userId
-          navigate("/profile");
-        })
-        .catch(err => {
-          console.error("❌ Error fetching user:", err);
-          navigate("/");
-        });
-    } else {
-      console.error("❌ No token found!");
+    if (!token) {
+      console.error("❌ No token found in URL!");
       navigate("/");
+      return;
     }
+
+    console.log("🎵 Extracted Token:", token);
+
+    // ✅ Fetch user profile to get the user ID
+    fetch("https://api.spotify.com/v1/me", {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then(res => res.json())
+      .then(userData => {
+        if (!userData.id) {
+          console.error("❌ No user ID received from Spotify API!");
+          navigate("/");
+          return;
+        }
+
+        console.log("🎵 User Data:", userData);
+        console.log("✅ Storing in Redux → Token:", token, "UserID:", userData.id);
+
+        // ✅ Save userId in Redux
+        dispatch(setAuthToken({ token, expiresIn, userId: userData.id }));
+        
+        navigate("/profile");
+      })
+      .catch(err => {
+        console.error("❌ Error fetching user profile:", err);
+        navigate("/");
+      });
   }, [dispatch, navigate]);
 
   return <p>Processing login...</p>;

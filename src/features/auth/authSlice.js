@@ -2,9 +2,9 @@ import { createSlice } from "@reduxjs/toolkit";
 
 const initialState = {
   accessToken: null,
+  userId: null, // ✅ Ensure userId is tracked
   isAuthenticated: false,
   expiresAt: null,
-  userId: null, // ✅ Store user ID
 };
 
 const authSlice = createSlice({
@@ -14,16 +14,16 @@ const authSlice = createSlice({
     setAuthToken: (state, action) => {
       console.log("✅ Storing Token in Redux:", action.payload.token);
       state.accessToken = action.payload.token;
+      state.userId = action.payload.userId; // ✅ Store userId
       state.isAuthenticated = true;
       state.expiresAt = Date.now() + action.payload.expiresIn * 1000;
-      state.userId = action.payload.userId; // ✅ Save user ID
     },
     logout: (state) => {
       console.log("👋 Logging out...");
       state.accessToken = null;
+      state.userId = null; // ✅ Clear userId on logout
       state.isAuthenticated = false;
       state.expiresAt = null;
-      state.userId = null;
     },
   },
 });
