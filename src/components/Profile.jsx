@@ -9,9 +9,13 @@ const Profile = () => {
   const navigate = useNavigate();
   const accessToken = useSelector((state) => state.auth.accessToken);
   const userId = useSelector((state) => state.auth.userId);
+
   const [user, setUser] = useState(null);
   const [playlists, setPlaylists] = useState([]);
+  const [loadingPlaylists, setLoadingPlaylists] = useState(false);
+  const [error, setError] = useState(null);
 
+  // Fetch user profile info (just for greeting / logout)
   useEffect(() => {
     if (!accessToken) return navigate("/");
 
@@ -27,27 +31,32 @@ const Profile = () => {
       });
   }, [accessToken, dispatch, navigate]);
 
+  // Fetch synced playlists from our backend
+  const fetchSyncedPlaylists = async () => {
+    if (!userId) return;
+
+    setLoadingPlaylists(true);
+    setError(null);
+
+    try {
+      const res = await fetch(`http://localhost:3000/api/playlists/${userId}`);
+      if (!res.ok) throw new Error("Failed to fetch synced playlists.");
+
+      const data = await res.json();
+      setPlaylists(data.playlists || []);
+    } catch (err) {
+      console.error("❌ Error fetching playlists:", err);
+      setError(err.message);
+    } finally {
+      setLoadingPlaylists(false);
+    }
+  };
+
   useEffect(() => {
-    if (!accessToken) return;
-
-    const fetchPlaylists = async () => {
-      let allPlaylists = [];
-      let next = "https://api.spotify.com/v1/me/playlists?limit=50";
-
-      while (next) {
-        const res = await fetch(next, {
-          headers: { Authorization: `Bearer ${accessToken}` },
-        });
-        const data = await res.json();
-        allPlaylists = [...allPlaylists, ...data.items];
-        next = data.next;
-      }
-
-      setPlaylists(allPlaylists);
-    };
-
-    fetchPlaylists();
-  }, [accessToken]);
+    if (userId) {
+      fetchSyncedPlaylists();
+    }
+  }, [userId]);
 
   return (
     <div className="p-6">
@@ -56,22 +65,36 @@ const Profile = () => {
           <h1 className="text-2xl font-bold">Welcome, {user.display_name}!</h1>
           <p>Email: {user.email}</p>
 
-          <SyncPlaylists playlists={playlists} />
+          {/* Sync button */}
+          <SyncPlaylists onSyncSuccess={fetchSyncedPlaylists} />
 
-          <div className="mt-4">
-            <p>You have {playlists.length} playlists ready to sync.</p>
-            <ul className="list-disc pl-6">
-              {playlists.map((pl) => (
-                <li key={pl.id}>
-                  {pl.name} ({pl.tracks.total} songs)
-                </li>
-              ))}
-            </ul>
+          {/* Display playlists after sync */}
+          <div className="mt-6">
+            {loadingPlaylists && <p className="text-blue-500">Loading playlists...</p>}
+            {error && <p className="text-red-500">{error}</p>}
+
+            {!loadingPlaylists && playlists.length > 0 && (
+              <>
+                <p>You have {playlists.length} playlists synced:</p>
+                <ul className="list-disc pl-6 mt-2">
+                  {playlists.map((pl) => (
+                    <li key={pl.id}>
+                      {pl.name} ({pl.total_tracks} songs)
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
+
+            {!loadingPlaylists && playlists.length === 0 && (
+              <p className="text-gray-500">No playlists synced yet.</p>
+            )}
           </div>
 
+          {/* Logout button */}
           <button
             onClick={() => dispatch(logout())}
-            className="mt-4 bg-red-500 text-white px-4 py-2 rounded"
+            className="mt-6 bg-red-500 text-white px-4 py-2 rounded"
           >
             Logout
           </button>
