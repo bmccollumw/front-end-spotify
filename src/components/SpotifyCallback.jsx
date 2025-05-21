@@ -14,40 +14,50 @@ const SpotifyCallback = () => {
     const expiresIn = parseInt(params.get("expires_in"), 10);
 
     if (!token) {
-      console.error("❌ No token found in URL!");
+      console.error("❌ No token found in URL hash!");
       navigate("/");
       return;
     }
 
-    console.log("🎵 Extracted Token:", token);
+    const fetchSpotifyProfileAndSync = async () => {
+      try {
+        // Step 1: Fetch user profile from Spotify
+        const profileRes = await fetch("https://api.spotify.com/v1/me", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
 
-    // ✅ Fetch user profile to get the user ID
-    fetch("https://api.spotify.com/v1/me", {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then(res => res.json())
-      .then(userData => {
-        if (!userData.id) {
-          console.error("❌ No user ID received from Spotify API!");
-          navigate("/");
-          return;
-        }
+        if (!profileRes.ok) throw new Error("Failed to fetch user profile.");
 
-        console.log("🎵 User Data:", userData);
-        console.log("✅ Storing in Redux → Token:", token, "UserID:", userData.id);
+        const userData = await profileRes.json();
+        if (!userData || !userData.id) throw new Error("No user ID in Spotify response.");
 
-        // ✅ Save userId in Redux
-        dispatch(setAuthToken({ token, expiresIn, userId: userData.id }));
-        
+        // Step 2: Sync user with backend
+        const syncRes = await fetch("http://localhost:3000/api/users/sync", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            spotifyId: userData.id,
+            displayName: userData.display_name,
+            email: userData.email,
+          }),
+        });
+
+        const result = await syncRes.json();
+        if (!result.success || !result.userId) throw new Error("User sync failed.");
+
+        // Step 3: Store token and navigate
+        dispatch(setAuthToken({ token, expiresIn, userId: result.userId }));
         navigate("/profile");
-      })
-      .catch(err => {
-        console.error("❌ Error fetching user profile:", err);
+      } catch (error) {
+        console.error("❌ Error during Spotify callback:", error.message);
         navigate("/");
-      });
+      }
+    };
+
+    fetchSpotifyProfileAndSync();
   }, [dispatch, navigate]);
 
-  return <p>Processing login...</p>;
+  return <p className="p-4">Processing Spotify login...</p>;
 };
 
 export default SpotifyCallback;

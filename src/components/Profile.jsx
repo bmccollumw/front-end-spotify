@@ -9,53 +9,46 @@ const Profile = () => {
   const navigate = useNavigate();
   const accessToken = useSelector((state) => state.auth.accessToken);
   const userId = useSelector((state) => state.auth.userId);
-
   const [user, setUser] = useState(null);
   const [playlists, setPlaylists] = useState([]);
-  const [loadingPlaylists, setLoadingPlaylists] = useState(false);
-  const [error, setError] = useState(null);
 
-  // Fetch user profile info (just for greeting / logout)
+  // Redirect if not authenticated
   useEffect(() => {
     if (!accessToken) return navigate("/");
+  }, [accessToken, navigate]);
 
-    fetch("https://api.spotify.com/v1/me", {
-      headers: { Authorization: `Bearer ${accessToken}` },
-    })
-      .then((res) => res.json())
-      .then(setUser)
-      .catch((err) => {
-        console.error("❌ Failed to fetch profile:", err);
+  // Get user profile data from the backend (already stored)
+  useEffect(() => {
+    const fetchSyncedUser = async () => {
+      try {
+        const res = await fetch(`http://localhost:3000/api/user/${userId}`);
+        if (!res.ok) throw new Error("User not found");
+        const data = await res.json();
+        setUser(data);
+      } catch (err) {
+        console.error("❌ Error loading user:", err);
         dispatch(logout());
         navigate("/");
-      });
-  }, [accessToken, dispatch, navigate]);
+      }
+    };
 
-  // Fetch synced playlists from our backend
-  const fetchSyncedPlaylists = async () => {
-    if (!userId) return;
+    if (userId) fetchSyncedUser();
+  }, [userId, dispatch, navigate]);
 
-    setLoadingPlaylists(true);
-    setError(null);
-
-    try {
-      const res = await fetch(`http://localhost:3000/api/playlists/${userId}`);
-      if (!res.ok) throw new Error("Failed to fetch synced playlists.");
-
-      const data = await res.json();
-      setPlaylists(data.playlists || []);
-    } catch (err) {
-      console.error("❌ Error fetching playlists:", err);
-      setError(err.message);
-    } finally {
-      setLoadingPlaylists(false);
-    }
-  };
-
+  // Get synced playlists from the backend
   useEffect(() => {
-    if (userId) {
-      fetchSyncedPlaylists();
-    }
+    const fetchSyncedPlaylists = async () => {
+      try {
+        const res = await fetch(`http://localhost:3000/api/playlists/${userId}`);
+        if (!res.ok) throw new Error("Failed to fetch synced playlists.");
+        const data = await res.json();
+        setPlaylists(data);
+      } catch (err) {
+        console.error("❌ Error fetching playlists:", err);
+      }
+    };
+
+    if (userId) fetchSyncedPlaylists();
   }, [userId]);
 
   return (
@@ -65,36 +58,22 @@ const Profile = () => {
           <h1 className="text-2xl font-bold">Welcome, {user.display_name}!</h1>
           <p>Email: {user.email}</p>
 
-          {/* Sync button */}
-          <SyncPlaylists onSyncSuccess={fetchSyncedPlaylists} />
+          <SyncPlaylists userId={userId} accessToken={accessToken} />
 
-          {/* Display playlists after sync */}
-          <div className="mt-6">
-            {loadingPlaylists && <p className="text-blue-500">Loading playlists...</p>}
-            {error && <p className="text-red-500">{error}</p>}
-
-            {!loadingPlaylists && playlists.length > 0 && (
-              <>
-                <p>You have {playlists.length} playlists synced:</p>
-                <ul className="list-disc pl-6 mt-2">
-                  {playlists.map((pl) => (
-                    <li key={pl.id}>
-                      {pl.name} ({pl.total_tracks} songs)
-                    </li>
-                  ))}
-                </ul>
-              </>
-            )}
-
-            {!loadingPlaylists && playlists.length === 0 && (
-              <p className="text-gray-500">No playlists synced yet.</p>
-            )}
+          <div className="mt-4">
+            <p>You have {playlists.length} playlists synced.</p>
+            <ul className="list-disc pl-6">
+              {playlists.map((pl) => (
+                <li key={pl.id}>
+                  {pl.name} ({pl.total_tracks} songs)
+                </li>
+              ))}
+            </ul>
           </div>
 
-          {/* Logout button */}
           <button
             onClick={() => dispatch(logout())}
-            className="mt-6 bg-red-500 text-white px-4 py-2 rounded"
+            className="mt-4 bg-red-500 text-white px-4 py-2 rounded"
           >
             Logout
           </button>
