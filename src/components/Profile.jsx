@@ -11,15 +11,16 @@ const Profile = () => {
   const userId = useSelector((state) => state.auth.userId);
   const [user, setUser] = useState(null);
   const [playlists, setPlaylists] = useState([]);
+  const [selectedPlaylist, setSelectedPlaylist] = useState(null);
 
   // Redirect if not authenticated
   useEffect(() => {
     if (!accessToken) return navigate("/");
   }, [accessToken, navigate]);
 
-  // Get user profile data from the backend (already stored)
+  // Fetch user profile data
   useEffect(() => {
-    const fetchSyncedUser = async () => {
+    const fetchUser = async () => {
       try {
         const res = await fetch(`http://localhost:3000/api/user/${userId}`);
         if (!res.ok) throw new Error("User not found");
@@ -31,54 +32,81 @@ const Profile = () => {
         navigate("/");
       }
     };
-
-    if (userId) fetchSyncedUser();
+    if (userId) fetchUser();
   }, [userId, dispatch, navigate]);
 
-  // Get synced playlists from the backend
+  // Fetch playlists
   useEffect(() => {
-    const fetchSyncedPlaylists = async () => {
+    const fetchPlaylists = async () => {
       try {
         const res = await fetch(`http://localhost:3000/api/playlists/${userId}`);
-        if (!res.ok) throw new Error("Failed to fetch synced playlists.");
+        if (!res.ok) throw new Error("Failed to fetch playlists");
         const data = await res.json();
         setPlaylists(data);
       } catch (err) {
         console.error("❌ Error fetching playlists:", err);
       }
     };
-
-    if (userId) fetchSyncedPlaylists();
+    if (userId) fetchPlaylists();
   }, [userId]);
 
   return (
-    <div className="p-6">
-      {user && (
-        <>
-          <h1 className="text-2xl font-bold">Welcome, {user.display_name}!</h1>
-          <p>Email: {user.email}</p>
-
-          <SyncPlaylists userId={userId} accessToken={accessToken} />
-
-          <div className="mt-4">
-            <p>You have {playlists.length} playlists synced.</p>
-            <ul className="list-disc pl-6">
-              {playlists.map((pl) => (
-                <li key={pl.id}>
-                  {pl.name} ({pl.total_tracks} songs)
-                </li>
-              ))}
-            </ul>
+    <div className="flex flex-col min-h-screen p-4 md:flex-row">
+      {/* Left Sidebar */}
+      <div className="md:w-1/3 w-full md:pr-6">
+        <div className="flex justify-between items-center">
+          <div>
+            {user && (
+              <>
+                <h1 className="text-xl font-bold">{user.display_name}</h1>
+                <p className="text-sm text-gray-600">{user.email}</p>
+              </>
+            )}
           </div>
-
           <button
             onClick={() => dispatch(logout())}
-            className="mt-4 bg-red-500 text-white px-4 py-2 rounded"
+            className="bg-red-500 text-white px-3 py-1 rounded text-sm"
           >
             Logout
           </button>
-        </>
-      )}
+        </div>
+
+        {/* Sync Button */}
+        <div className="mt-4">
+          <SyncPlaylists userId={userId} accessToken={accessToken} />
+        </div>
+
+        {/* Playlist List */}
+        <div className="mt-6">
+          <h2 className="font-semibold text-lg mb-2">Your Playlists</h2>
+          <ul className="space-y-2">
+            {playlists.map((pl) => (
+              <li
+                key={pl.id}
+                onClick={() => setSelectedPlaylist(pl)}
+                className={`p-2 rounded cursor-pointer hover:bg-gray-100 ${
+                  selectedPlaylist?.id === pl.id ? "bg-blue-100 font-semibold" : ""
+                }`}
+              >
+                {pl.name} <span className="text-sm text-gray-500">({pl.total_tracks} songs)</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
+
+      {/* Right Panel */}
+      <div className="md:w-2/3 w-full mt-6 md:mt-0">
+        {selectedPlaylist ? (
+          <div>
+            <h2 className="text-xl font-bold">{selectedPlaylist.name}</h2>
+            <p className="text-sm text-gray-600">Total Tracks: {selectedPlaylist.total_tracks}</p>
+            {/* Later: Display track list from DB here */}
+          </div>
+        ) : (
+          <p className="text-gray-500 italic">Select a playlist to see details.</p>
+        )}
+      </div>
     </div>
   );
 };
