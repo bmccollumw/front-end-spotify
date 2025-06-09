@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-const SyncPlaylists = ({ userId, accessToken }) => {
+const SyncPlaylists = ({ spotifyId, accessToken, onSyncComplete }) => {
   const [syncing, setSyncing] = useState(false);
   const [error, setError] = useState(null);
 
@@ -9,12 +9,14 @@ const SyncPlaylists = ({ userId, accessToken }) => {
     setError(null);
 
     try {
+      console.log("🧪 Sync payload →", { accessToken, spotifyId });
+
       const res = await fetch("http://localhost:3000/api/sync", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ userId, accessToken }),
+        body: JSON.stringify({ spotifyId, accessToken }),
       });
 
       if (!res.ok) {
@@ -22,7 +24,10 @@ const SyncPlaylists = ({ userId, accessToken }) => {
         throw new Error(errorText || "Sync failed.");
       }
 
-      alert("✅ Sync complete! Please refresh to see new playlists.");
+      alert("✅ Sync complete!");
+      if (onSyncComplete) {
+        onSyncComplete(); // 🔁 let parent know sync is done
+      }
     } catch (err) {
       console.error("❌ Sync error:", err.message);
       setError("Sync error: " + err.message);

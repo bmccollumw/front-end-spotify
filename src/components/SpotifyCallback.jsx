@@ -6,12 +6,16 @@ import { useNavigate } from "react-router-dom";
 const SpotifyCallback = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
-
+  
   useEffect(() => {
+    console.log("📡 SpotifyCallback mounted");
+
     const hash = window.location.hash.substring(1);
     const params = new URLSearchParams(hash);
     const token = params.get("access_token");
     const expiresIn = parseInt(params.get("expires_in"), 10);
+    console.log("🔑 Parsed access token:", token);
+    console.log("⏳ Token expires in (seconds):", expiresIn);
 
     if (!token) {
       console.error("❌ No token found in URL hash!");
@@ -19,42 +23,41 @@ const SpotifyCallback = () => {
       return;
     }
 
-    const fetchSpotifyProfileAndSync = async () => {
+    const syncUserAndRedirect = async () => {
+      console.log("📤 Sending POST /api/users/sync with accessToken:", token);
+
       try {
-        // Step 1: Fetch user profile from Spotify
-        const profileRes = await fetch("https://api.spotify.com/v1/me", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-
-        if (!profileRes.ok) throw new Error("Failed to fetch user profile.");
-
-        const userData = await profileRes.json();
-        if (!userData || !userData.id) throw new Error("No user ID in Spotify response.");
-
-        // Step 2: Sync user with backend
         const syncRes = await fetch("http://localhost:3000/api/users/sync", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            spotifyId: userData.id,
-            displayName: userData.display_name,
-            email: userData.email,
-          }),
+          body: JSON.stringify({ accessToken: token }),
         });
 
         const result = await syncRes.json();
-        if (!result.success || !result.userId) throw new Error("User sync failed.");
+        if (!syncRes.ok || !result.user || !result.user.id || !result.user.spotify_id) {
+          throw new Error(result.message || "User sync failed.");
+        }
 
-        // Step 3: Store token and navigate
-        dispatch(setAuthToken({ token, expiresIn, userId: result.userId }));
+        // ✅ Store full info including spotifyId
+        dispatch(setAuthToken({
+          token,
+          expiresIn,
+          userId: result.user.id,                  // DB id
+          spotifyId: result.user.spotify_id,       // Spotify ID
+          user: {
+            displayName: result.user.display_name,
+            email: result.user.email,
+          },
+        }));
+
         navigate("/profile");
       } catch (error) {
-        console.error("❌ Error during Spotify callback:", error.message);
+        console.error("❌ Error syncing user:", error.message);
         navigate("/");
       }
     };
 
-    fetchSpotifyProfileAndSync();
+    syncUserAndRedirect();
   }, [dispatch, navigate]);
 
   return <p className="p-4">Processing Spotify login...</p>;

@@ -7,104 +7,122 @@ import SyncPlaylists from "../components/SyncPlaylists";
 const Profile = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
+
   const accessToken = useSelector((state) => state.auth.accessToken);
   const userId = useSelector((state) => state.auth.userId);
-  const [user, setUser] = useState(null);
+  const spotifyId = useSelector((state) => state.auth.spotifyId); // ✅ this was missing
+  const user = useSelector((state) => state.auth.user);
+
   const [playlists, setPlaylists] = useState([]);
   const [selectedPlaylist, setSelectedPlaylist] = useState(null);
+  const [playlistSongs, setPlaylistSongs] = useState([]);
+  const [justSynced, setJustSynced] = useState(false); // ✅ trigger re-fetch
 
-  // Redirect if not authenticated
   useEffect(() => {
-    if (!accessToken) return navigate("/");
-  }, [accessToken, navigate]);
+    if (!accessToken || !userId || !user) {
+      navigate("/");
+    }
+  }, [accessToken, userId, user, navigate]);
 
-  // Fetch user profile data
-  useEffect(() => {
-    const fetchUser = async () => {
-      try {
-        const res = await fetch(`http://localhost:3000/api/user/${userId}`);
-        if (!res.ok) throw new Error("User not found");
-        const data = await res.json();
-        setUser(data);
-      } catch (err) {
-        console.error("❌ Error loading user:", err);
-        dispatch(logout());
-        navigate("/");
-      }
-    };
-    if (userId) fetchUser();
-  }, [userId, dispatch, navigate]);
+  // 🔁 Fetch playlists from backend
+  const fetchPlaylists = async () => {
+    console.log("🔁 Calling fetchPlaylists");
+    try {
+      const res = await fetch(`http://localhost:3000/api/playlists/${userId}`, {
+        cache: "no-store", // force fresh fetch
+      });
+      const data = await res.json();
+      console.log("🎧 Updated playlists from DB:", data);
+      setPlaylists(data);
+    } catch (err) {
+      console.error("❌ Error fetching playlists:", err);
+    }
+  };
 
-  // Fetch playlists
+  // 🔁 Run when user logs in or sync is done
   useEffect(() => {
-    const fetchPlaylists = async () => {
-      try {
-        const res = await fetch(`http://localhost:3000/api/playlists/${userId}`);
-        if (!res.ok) throw new Error("Failed to fetch playlists");
-        const data = await res.json();
-        setPlaylists(data);
-      } catch (err) {
-        console.error("❌ Error fetching playlists:", err);
-      }
-    };
     if (userId) fetchPlaylists();
-  }, [userId]);
+  }, [userId, justSynced]);
+
+  // 🎵 Fetch songs for a selected playlist
+  useEffect(() => {
+    const fetchSongs = async () => {
+      try {
+        const res = await fetch(`http://localhost:3000/api/songs/${selectedPlaylist.id}`);
+        if (!res.ok) throw new Error("Failed to load playlist songs.");
+        const data = await res.json();
+        setPlaylistSongs(data);
+      } catch (err) {
+        console.error("❌ Error fetching playlist songs:", err);
+      }
+    };
+
+    if (selectedPlaylist) fetchSongs();
+  }, [selectedPlaylist]);
 
   return (
-    <div className="flex flex-col min-h-screen p-4 md:flex-row">
-      {/* Left Sidebar */}
-      <div className="md:w-1/3 w-full md:pr-6">
-        <div className="flex justify-between items-center">
-          <div>
-            {user && (
-              <>
-                <h1 className="text-xl font-bold">{user.display_name}</h1>
+    <div className="min-h-screen flex flex-col md:flex-row">
+      {/* Sidebar */}
+      <div className="w-full p-4 border-b md:border-b-0 md:border-r md:w-1/3 lg:w-1/4">
+        {user && (
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="text-xl font-bold">{user.displayName}</h1>
                 <p className="text-sm text-gray-600">{user.email}</p>
-              </>
-            )}
-          </div>
-          <button
-            onClick={() => dispatch(logout())}
-            className="bg-red-500 text-white px-3 py-1 rounded text-sm"
-          >
-            Logout
-          </button>
-        </div>
-
-        {/* Sync Button */}
-        <div className="mt-4">
-          <SyncPlaylists userId={userId} accessToken={accessToken} />
-        </div>
-
-        {/* Playlist List */}
-        <div className="mt-6">
-          <h2 className="font-semibold text-lg mb-2">Your Playlists</h2>
-          <ul className="space-y-2">
-            {playlists.map((pl) => (
-              <li
-                key={pl.id}
-                onClick={() => setSelectedPlaylist(pl)}
-                className={`p-2 rounded cursor-pointer hover:bg-gray-100 ${
-                  selectedPlaylist?.id === pl.id ? "bg-blue-100 font-semibold" : ""
-                }`}
+              </div>
+              <button
+                onClick={() => dispatch(logout())}
+                className="text-sm bg-red-500 text-white px-3 py-1 rounded"
               >
-                {pl.name} <span className="text-sm text-gray-500">({pl.total_tracks} songs)</span>
-              </li>
-            ))}
-          </ul>
-        </div>
+                Logout
+              </button>
+            </div>
+
+            {/* Sync button */}
+            <SyncPlaylists
+              accessToken={accessToken}
+              spotifyId={spotifyId}
+              onSyncComplete={fetchPlaylists} 
+            />
+
+
+            {/* Playlist list */}
+            <div>
+              <h2 className="mt-4 text-lg font-semibold">Playlists</h2>
+              <ul className="mt-2 space-y-1">
+                {playlists.map((pl) => (
+                  <li
+                    key={pl.id}
+                    className={`cursor-pointer px-2 py-1 rounded hover:bg-gray-200 ${
+                      selectedPlaylist?.id === pl.id ? "bg-gray-300" : ""
+                    }`}
+                    onClick={() => setSelectedPlaylist(pl)}
+                  >
+                    {pl.name} ({pl.total_tracks})
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        )}
       </div>
 
-      {/* Right Panel */}
-      <div className="md:w-2/3 w-full mt-6 md:mt-0">
+      {/* Playlist songs view */}
+      <div className="flex-1 p-4">
         {selectedPlaylist ? (
           <div>
-            <h2 className="text-xl font-bold">{selectedPlaylist.name}</h2>
-            <p className="text-sm text-gray-600">Total Tracks: {selectedPlaylist.total_tracks}</p>
-            {/* Later: Display track list from DB here */}
+            <h2 className="text-xl font-bold mb-2">{selectedPlaylist.name}</h2>
+            <ul className="space-y-1">
+              {playlistSongs.map((song, index) => (
+                <li key={index} className="text-sm border-b py-1">
+                  {song.name} — {song.artist}
+                </li>
+              ))}
+            </ul>
           </div>
         ) : (
-          <p className="text-gray-500 italic">Select a playlist to see details.</p>
+          <p className="text-gray-600">Select a playlist to view its songs.</p>
         )}
       </div>
     </div>
